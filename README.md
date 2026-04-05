@@ -2,7 +2,9 @@
 
 Real-time satellite tracking in the browser. Visualizes the entire active catalog (~10,000+ objects) on an interactive 3D globe with pass predictions for user-defined ground stations.
 
-![SatTrack screenshot](screenshots/preview.png)
+![SatTrack globe view](screenshots/preview.png)
+
+![SatTrack pass schedule](screenshots/passes.png)
 
 ## Features
 
