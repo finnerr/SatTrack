@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# SatTrack
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Real-time satellite tracking in the browser. Visualizes the entire active catalog (~10,000+ objects) on an interactive 3D globe with pass predictions for user-defined ground stations.
 
-Currently, two official plugins are available:
+![SatTrack screenshot](screenshots/Screenshot%202026-03-14%20at%209.35.00%E2%80%AFPM.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- 3D globe with live satellite positions (SGP4 propagation via Web Worker)
+- Filter by orbit class, object type, country, inclination, RCS size, mission purpose, and more
+- Ground station management with AOS/TCA/LOS pass predictions
+- Constellation groups with color-coded overlays
+- Sim clock — scrub time forward/backward to preview future passes
+- Gantt-style pass schedule with elevation quality indicators
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting Started
 
-## Expanding the ESLint configuration
+**Prerequisites:** Node.js 18+
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone https://github.com/finnerr/SatTrack.git
+cd SatTrack
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open http://localhost:5173.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+The repo ships with a bundled TLE snapshot so the app works offline out of the box. To pull a fresh catalog from CelesTrak:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run fetch-tles
 ```
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `/` | Focus search |
+| `S` | Toggle satellite list |
+| `L` | Toggle log panel |
+| `Escape` | Deselect satellite |
+| `Cmd/Ctrl + Backspace` | Return to live time |
+
+## Tech Stack
+
+- [Vite](https://vitejs.dev) + [React](https://react.dev) + TypeScript
+- [CesiumJS](https://cesium.com) via [resium](https://resium.reearth.io)
+- [Zustand](https://zustand-demo.pmnd.rs) for state
+- [Tailwind CSS](https://tailwindcss.com)
+- [satellite.js](https://github.com/shashwatak/satellite-js) for SGP4 propagation
+- TLE data from [CelesTrak](https://celestrak.org)
