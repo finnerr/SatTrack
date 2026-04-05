@@ -129,10 +129,14 @@ export default function Globe() {
   const viewerRef        = useRef<{ cesiumElement: Cesium.Viewer } | null>(null)
   const bordersRef       = useRef<Cesium.GeoJsonDataSource | null>(null)
   const cursorDisplayRef = useRef<HTMLSpanElement>(null)
-  const [imageryMode,   setImageryMode]   = useState<ImageryMode>('streets')
+  const [imageryMode,   setImageryMode]   = useState<ImageryMode>(
+    () => (localStorage.getItem('sattrack_imagery') as ImageryMode) ?? 'satellite'
+  )
   const [showFootprint, setShowFootprint] = useState(true)
   // Ref so the delayed imagery retry can read the current mode without stale closure
-  const imageryModeRef = useRef<ImageryMode>('streets')
+  const imageryModeRef = useRef<ImageryMode>(
+    (localStorage.getItem('sattrack_imagery') as ImageryMode) ?? 'satellite'
+  )
 
   const { positions, selected, setSelected, allSatellites } = useSatelliteStore()
   const groundStations      = useSatelliteStore((s) => s.groundStations)
@@ -187,6 +191,7 @@ export default function Globe() {
 
   useEffect(() => {
     imageryModeRef.current = imageryMode
+    localStorage.setItem('sattrack_imagery', imageryMode)
     const viewer = viewerRef.current?.cesiumElement
     if (!viewer) return
     viewer.imageryLayers.removeAll()
