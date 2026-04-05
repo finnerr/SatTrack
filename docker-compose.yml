@@ -1,0 +1,7 @@
+services:
+  sattrack:
+    build: .
+    container_name: sattrack
+    restart: unless-stopped
+    ports:
+      - "8080:80"
