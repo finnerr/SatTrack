@@ -104,7 +104,7 @@ function propagateAll(records: SatelliteMeta[], cap: number, timestampMs: number
       if (satrec.error !== 0) { failed++; continue }
 
       const pv = satellite.propagate(satrec, now)
-      if (!pv.position || typeof pv.position === 'boolean') { failed++; continue }
+      if (!pv || !pv.position || typeof pv.position === 'boolean') { failed++; continue }
 
       const geo = satellite.eciToGeodetic(pv.position as satellite.EciVec3<number>, gmst)
 
@@ -165,7 +165,7 @@ function predictPasses(req: PredictPassesRequest): SatellitePass[] {
     try {
       const date = new Date(ms)
       const pv   = satellite.propagate(satrec, date)
-      if (!pv.position || typeof pv.position === 'boolean') return null
+      if (!pv || !pv.position || typeof pv.position === 'boolean') return null
       const gmst   = satellite.gstime(date)
       const posEcf = satellite.eciToEcf(pv.position as satellite.EciVec3<number>, gmst)
       const la     = satellite.ecfToLookAngles(observerGd, posEcf)
@@ -180,7 +180,7 @@ function predictPasses(req: PredictPassesRequest): SatellitePass[] {
     try {
       const date = new Date(ms)
       const pv   = satellite.propagate(satrec, date)
-      if (!pv.position || typeof pv.position === 'boolean') return null
+      if (!pv || !pv.position || typeof pv.position === 'boolean') return null
       const gmst   = satellite.gstime(date)
       const posEcf = satellite.eciToEcf(pv.position as satellite.EciVec3<number>, gmst)
       const la     = satellite.ecfToLookAngles(observerGd, posEcf)
@@ -295,7 +295,7 @@ function checkConjunctions(req: CheckConjunctionsRequest): ConjunctionResult[] {
   const now    = new Date(req.timestampMs)
   const gmst   = satellite.gstime(now)
   const pv     = satellite.propagate(satrec, now)
-  if (!pv.position || typeof pv.position === 'boolean') return []
+  if (!pv || !pv.position || typeof pv.position === 'boolean') return []
 
   const selPos = pv.position as satellite.EciVec3<number>
   const selVel = typeof pv.velocity !== 'boolean' ? pv.velocity as satellite.EciVec3<number> : null
