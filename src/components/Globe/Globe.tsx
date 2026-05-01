@@ -393,7 +393,7 @@ export default function Globe() {
     const R = 6_371_000  // Earth radius in metres
     const h = livePos.alt * 1000
     return R * Math.acos(R / (R + h))
-  }, [livePos])  // updates with every position tick
+  }, [livePos?.alt])  // only rebuilds when altitude actually changes, not on every tick
 
   // ── Render ───────────────────────────────────────────────────────────────────
 

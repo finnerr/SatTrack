@@ -276,7 +276,9 @@ export const useSatelliteStore = create<SatelliteStore>()(
 
     // ── Selection ──────────────────────────────────────────────────────────────
     selected: null,
-    setSelected: (selected) => set({ selected }),
+    setSelected: (selected) => selected === null
+      ? set((s) => ({ selected, filters: { ...s.filters, nameSearch: '' } }))
+      : set({ selected }),
 
     // ── Status ────────────────────────────────────────────────────────────────
     loading: false,

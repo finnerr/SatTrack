@@ -69,7 +69,7 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_, ref) {
 
   const {
     allSatellites, setSelected, filters, toggleOrbitClass,
-    setNameSearch, constellationGroups, addGroup, addSatellitesToGroup,
+    setNameSearch, clearFilters, constellationGroups, addGroup, addSatellitesToGroup,
     toggleGroupFilter,
   } = useSatelliteStore()
 
@@ -239,6 +239,20 @@ const SearchBar = forwardRef<SearchBarHandle>(function SearchBar(_, ref) {
           ↵
         </button>
       </div>
+
+      {/* Active name-search filter indicator */}
+      {filters.nameSearch && !dropdownOpen && (
+        <div className="flex justify-end mt-1">
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-400">
+            <span className="truncate max-w-[140px]">{filters.nameSearch}</span>
+            <button
+              onClick={() => { setSelected(null); clearFilters() }}
+              className="text-cyan-500 hover:text-white transition-colors leading-none ml-0.5"
+              title="Clear filter"
+            >✕</button>
+          </div>
+        </div>
+      )}
 
       {/* Dropdown */}
       {dropdownOpen && results.length > 0 && (
