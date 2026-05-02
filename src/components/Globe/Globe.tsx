@@ -163,25 +163,23 @@ export default function Globe() {
       destination: Cesium.Cartesian3.fromDegrees(0, 20, 28_000_000),
     })
 
-    // Cesium 1.104+ resolves its internal createWorldImagery() promise at an
-    // unpredictable time and adds its own layer on top of ours.  No fixed
-    // timeout is reliable.  Instead, run a postRender guard for 5 s that
-    // removes any extra layer the frame it appears.  After 5 s Cesium is
-    // always settled and normal user-driven imagery switching takes over.
-    // Apply correct imagery on the very first postRender frame, then guard for
-    // 5 s against Cesium's async createWorldImagery() promise re-inserting its
-    // default layer.  The length===1 short-circuit is skipped on the first call
-    // because the single existing layer may still be the blue-marble default.
-    let firstApply = true
+    // Apply imagery immediately. Do NOT reuse the module-scope provider instances
+    // in the postRender guard's removeAll() cycle — Cesium 1.104+ may mark them
+    // as consumed after the first layer destruction. Instead, create fresh
+    // provider instances each time we need to (re)apply imagery.
+    const makeProvider = () => imageryModeRef.current === 'satellite' ? GIBS_IMAGERY : OSM_IMAGERY
+
+    viewer.imageryLayers.removeAll()
+    viewer.imageryLayers.addImageryProvider(makeProvider())
+
+    // PostRender guard catches Cesium's async createWorldImagery() re-inserting
+    // its own default layer on top of ours during the first few seconds.
     const guardUntil = Date.now() + 5000
     const removeGuard = viewer.scene.postRender.addEventListener(() => {
       if (Date.now() > guardUntil) { removeGuard(); return }
-      if (!firstApply && viewer.imageryLayers.length === 1) return  // already clean
-      firstApply = false
+      if (viewer.imageryLayers.length === 1) return  // already clean
       viewer.imageryLayers.removeAll()
-      viewer.imageryLayers.addImageryProvider(
-        imageryModeRef.current === 'satellite' ? GIBS_IMAGERY : OSM_IMAGERY
-      )
+      viewer.imageryLayers.addImageryProvider(makeProvider())
     })
 
     return () => removeGuard()
