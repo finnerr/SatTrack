@@ -5,6 +5,28 @@ import { applyFilters } from '../../services/satelliteEngine'
 import { countryName } from '../../utils/countryNames'
 import type { OrbitClass, SatelliteUserType, SatellitePurpose, InclinationBand, TleAgeBand } from '../../types/satellite'
 
+// ── Label maps (shared between filter sections and active-filter bar) ─────────
+
+const INCLINATION_LABELS: Record<InclinationBand, string> = {
+  EQUATORIAL:       'Equatorial',
+  MID_LATITUDE:     'Mid-Latitude',
+  HIGH_INCLINATION: 'High Incl.',
+  POLAR:            'Polar',
+  SUN_SYNCHRONOUS:  'Sun-Sync',
+  RETROGRADE:       'Retrograde',
+}
+
+const PURPOSE_LABELS: Record<SatellitePurpose, string> = {
+  COMMUNICATIONS:    'Communications',
+  EARTH_OBSERVATION: 'Earth Obs',
+  NAVIGATION:        'Navigation',
+  RECONNAISSANCE:    'Reconnaissance',
+  WEATHER:           'Weather',
+  SPACE_SCIENCE:     'Space Science',
+  TECHNOLOGY:        'Technology',
+  OTHER:             'Other',
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function SectionHeader({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
@@ -50,6 +72,105 @@ function Chip({
         <span className="text-slate-600 text-xs ml-auto pl-1">{count.toLocaleString()}</span>
       )}
     </button>
+  )
+}
+
+// Dismissible chip used in the active-filter summary bar
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 whitespace-nowrap flex-shrink-0">
+      {label}
+      <button
+        onClick={onRemove}
+        className="ml-0.5 text-cyan-400 hover:text-white transition-colors leading-none"
+        title={`Remove "${label}" filter`}
+        aria-label={`Remove ${label} filter`}
+      >
+        ×
+      </button>
+    </span>
+  )
+}
+
+type ActiveFilterBarProps = {
+  filters: ReturnType<typeof useSatelliteStore.getState>['filters']
+  selectedGroupIds: Set<string>
+  constellationGroups: ReturnType<typeof useSatelliteStore.getState>['constellationGroups']
+  clearFilters: () => void
+  setNameSearch: (v: string) => void
+  toggleOrbitClass: (v: OrbitClass) => void
+  toggleInclinationBand: (v: InclinationBand) => void
+  toggleTleAgeBand: (v: TleAgeBand) => void
+  togglePurpose: (v: SatellitePurpose) => void
+  toggleUserType: (v: SatelliteUserType) => void
+  toggleCountry: (code: string) => void
+  setWatchListOnly: (v: boolean) => void
+  toggleGroupFilter: (id: string) => void
+}
+
+function ActiveFilterBar({
+  filters,
+  selectedGroupIds,
+  constellationGroups,
+  clearFilters,
+  setNameSearch,
+  toggleOrbitClass,
+  toggleInclinationBand,
+  toggleTleAgeBand,
+  togglePurpose,
+  toggleUserType,
+  toggleCountry,
+  setWatchListOnly,
+  toggleGroupFilter,
+}: ActiveFilterBarProps) {
+  const chips: { key: string; label: string; onRemove: () => void }[] = []
+
+  if (filters.nameSearch) {
+    chips.push({ key: 'name', label: `name: ${filters.nameSearch}`, onRemove: () => setNameSearch('') })
+  }
+  for (const oc of filters.orbitClasses) {
+    chips.push({ key: `orbit-${oc}`, label: oc, onRemove: () => toggleOrbitClass(oc) })
+  }
+  for (const band of filters.inclinationBands) {
+    chips.push({ key: `incl-${band}`, label: INCLINATION_LABELS[band] ?? band, onRemove: () => toggleInclinationBand(band) })
+  }
+  for (const band of filters.tleAgeBands) {
+    chips.push({ key: `tle-${band}`, label: band.charAt(0) + band.slice(1).toLowerCase(), onRemove: () => toggleTleAgeBand(band) })
+  }
+  for (const p of filters.purposes) {
+    chips.push({ key: `purpose-${p}`, label: PURPOSE_LABELS[p] ?? p, onRemove: () => togglePurpose(p) })
+  }
+  for (const ut of filters.userTypes) {
+    chips.push({ key: `ut-${ut}`, label: ut.charAt(0) + ut.slice(1).toLowerCase(), onRemove: () => toggleUserType(ut) })
+  }
+  for (const code of filters.countries) {
+    chips.push({ key: `country-${code}`, label: countryName(code), onRemove: () => toggleCountry(code) })
+  }
+  if (filters.watchListOnly) {
+    chips.push({ key: 'watchlist', label: 'Watch List', onRemove: () => setWatchListOnly(false) })
+  }
+  for (const id of selectedGroupIds) {
+    const grp = constellationGroups.find((g) => g.id === id)
+    chips.push({ key: `grp-${id}`, label: grp?.name ?? id, onRemove: () => toggleGroupFilter(id) })
+  }
+
+  if (chips.length === 0) return null
+
+  return (
+    <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-space-700/50 bg-space-800/60">
+      <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0 scrollbar-none">
+        {chips.map((c) => (
+          <FilterChip key={c.key} label={c.label} onRemove={c.onRemove} />
+        ))}
+      </div>
+      <button
+        onClick={clearFilters}
+        className="flex-shrink-0 text-xs px-2 py-0.5 rounded border border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:border-red-400 hover:text-red-300 transition-colors"
+        title="Clear all filters"
+      >
+        Clear all
+      </button>
+    </div>
   )
 }
 
@@ -198,14 +319,7 @@ export default function FilterPanel({ embedded = false }: { embedded?: boolean }
         />
         {sections.inclination && (
           <div className="px-4 pb-3 grid grid-cols-2 gap-1.5">
-            {([
-              { val: 'EQUATORIAL',      label: 'Equatorial' },
-              { val: 'MID_LATITUDE',    label: 'Mid-Latitude' },
-              { val: 'HIGH_INCLINATION',label: 'High Incl.' },
-              { val: 'POLAR',           label: 'Polar' },
-              { val: 'SUN_SYNCHRONOUS', label: 'Sun-Sync' },
-              { val: 'RETROGRADE',      label: 'Retrograde' },
-            ] as { val: InclinationBand; label: string }[]).map(({ val, label }) => (
+            {(Object.entries(INCLINATION_LABELS) as [InclinationBand, string][]).map(([val, label]) => (
               <Chip key={val} label={label} active={filters.inclinationBands.has(val)} onClick={() => toggleInclinationBand(val)} />
             ))}
           </div>
@@ -242,16 +356,7 @@ export default function FilterPanel({ embedded = false }: { embedded?: boolean }
           />
           {sections.missionType && (
             <div className="px-4 pb-3 grid grid-cols-2 gap-1.5">
-              {([
-                { val: 'COMMUNICATIONS',   label: 'Communications' },
-                { val: 'EARTH_OBSERVATION',label: 'Earth Obs' },
-                { val: 'NAVIGATION',       label: 'Navigation' },
-                { val: 'RECONNAISSANCE',   label: 'Reconnaissance' },
-                { val: 'WEATHER',          label: 'Weather' },
-                { val: 'SPACE_SCIENCE',    label: 'Space Science' },
-                { val: 'TECHNOLOGY',       label: 'Technology' },
-                { val: 'OTHER',            label: 'Other' },
-              ] as { val: SatellitePurpose; label: string }[]).map(({ val, label }) => (
+              {(Object.entries(PURPOSE_LABELS) as [SatellitePurpose, string][]).map(([val, label]) => (
                 <Chip key={val} label={label} active={filters.purposes.has(val)} onClick={() => togglePurpose(val)} />
               ))}
             </div>
@@ -394,13 +499,21 @@ export default function FilterPanel({ embedded = false }: { embedded?: boolean }
   if (embedded) {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        {hasFilters && (
-          <div className="px-4 pt-2 flex-shrink-0">
-            <button onClick={clearFilters} className="text-xs text-slate-500 hover:text-red-400 transition-colors">
-              clear filters
-            </button>
-          </div>
-        )}
+        <ActiveFilterBar
+          filters={filters}
+          selectedGroupIds={selectedGroupIds}
+          constellationGroups={constellationGroups}
+          clearFilters={clearFilters}
+          setNameSearch={setNameSearch}
+          toggleOrbitClass={toggleOrbitClass}
+          toggleInclinationBand={toggleInclinationBand}
+          toggleTleAgeBand={toggleTleAgeBand}
+          togglePurpose={togglePurpose}
+          toggleUserType={toggleUserType}
+          toggleCountry={toggleCountry}
+          setWatchListOnly={setWatchListOnly}
+          toggleGroupFilter={toggleGroupFilter}
+        />
         <div className="overflow-y-auto flex-col flex flex-1 min-h-0">
           {isSampleData && (
             <div className="px-4 py-2 border-b border-space-700/50 text-xs text-amber-400/80">
@@ -432,11 +545,6 @@ export default function FilterPanel({ embedded = false }: { embedded?: boolean }
         {collapsed && hasFilters && (
           <span className="text-xs text-cyan-400 font-mono">active</span>
         )}
-        {!collapsed && hasFilters && (
-          <button onClick={clearFilters} className="text-xs text-slate-500 hover:text-red-400 transition-colors">
-            clear
-          </button>
-        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? 'Expand filter panel' : 'Collapse filter panel'}
@@ -446,6 +554,24 @@ export default function FilterPanel({ embedded = false }: { embedded?: boolean }
         </button>
       </div>
       {!collapsed && <div className="border-t border-space-700" />}
+
+      {!collapsed && (
+        <ActiveFilterBar
+          filters={filters}
+          selectedGroupIds={selectedGroupIds}
+          constellationGroups={constellationGroups}
+          clearFilters={clearFilters}
+          setNameSearch={setNameSearch}
+          toggleOrbitClass={toggleOrbitClass}
+          toggleInclinationBand={toggleInclinationBand}
+          toggleTleAgeBand={toggleTleAgeBand}
+          togglePurpose={togglePurpose}
+          toggleUserType={toggleUserType}
+          toggleCountry={toggleCountry}
+          setWatchListOnly={setWatchListOnly}
+          toggleGroupFilter={toggleGroupFilter}
+        />
+      )}
 
       {!collapsed && (
         <div className="overflow-y-auto flex-col flex flex-1 min-h-0">

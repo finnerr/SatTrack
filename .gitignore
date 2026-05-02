@@ -15,6 +15,7 @@ dist-ssr
 # Claude Code agent files
 .claude/
 CLAUDE.md
+DEPLOY.md
 
 # Editor directories and files
 .vscode/*
