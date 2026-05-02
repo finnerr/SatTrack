@@ -150,51 +150,81 @@ export default function Globe() {
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
+  // ── Imagery switching ────────────────────────────────────────────────────────
+  // Resium creates the Cesium viewer asynchronously after Globe mounts, so
+  // viewerRef.current?.cesiumElement is undefined on the first effect run.
+  // We poll with setInterval until the viewer is ready, then apply imagery and
+  // set up the postRender guard that evicts any default layer Cesium inserts
+  // asynchronously. The guard also doubles as the retry path for mode switches.
+
   useEffect(() => {
     Cesium.Ion.defaultAccessToken = ''
   }, [])
 
   useEffect(() => {
-    const viewer = viewerRef.current?.cesiumElement
-    if (!viewer) return
-    viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date())
-    viewer.clock.shouldAnimate = false
-    viewer.scene.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(0, 20, 28_000_000),
-    })
-
-    // Apply imagery immediately. Do NOT reuse the module-scope provider instances
-    // in the postRender guard's removeAll() cycle — Cesium 1.104+ may mark them
-    // as consumed after the first layer destruction. Instead, create fresh
-    // provider instances each time we need to (re)apply imagery.
-    const makeProvider = () => imageryModeRef.current === 'satellite' ? GIBS_IMAGERY : OSM_IMAGERY
-
-    viewer.imageryLayers.removeAll()
-    viewer.imageryLayers.addImageryProvider(makeProvider())
-
-    // PostRender guard catches Cesium's async createWorldImagery() re-inserting
-    // its own default layer on top of ours during the first few seconds.
-    const guardUntil = Date.now() + 5000
-    const removeGuard = viewer.scene.postRender.addEventListener(() => {
-      if (Date.now() > guardUntil) { removeGuard(); return }
-      if (viewer.imageryLayers.length === 1) return  // already clean
-      viewer.imageryLayers.removeAll()
-      viewer.imageryLayers.addImageryProvider(makeProvider())
-    })
-
-    return () => removeGuard()
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Imagery switching ────────────────────────────────────────────────────────
-
-  useEffect(() => {
     imageryModeRef.current = imageryMode
     localStorage.setItem('sattrack_imagery', imageryMode)
+
+    const applyImagery = (viewer: Cesium.Viewer) => {
+      viewer.imageryLayers.removeAll()
+      viewer.imageryLayers.addImageryProvider(
+        imageryModeRef.current === 'satellite' ? GIBS_IMAGERY : OSM_IMAGERY
+      )
+    }
+
     const viewer = viewerRef.current?.cesiumElement
-    if (!viewer) return
-    viewer.imageryLayers.removeAll()
-    viewer.imageryLayers.addImageryProvider(imageryMode === 'satellite' ? GIBS_IMAGERY : OSM_IMAGERY)
+    if (viewer && !viewer.isDestroyed()) {
+      applyImagery(viewer)
+      return
+    }
+
+    // Viewer not ready yet — poll until it is (resium initialises it after mount)
+    const t = setInterval(() => {
+      const v = viewerRef.current?.cesiumElement
+      if (v && !v.isDestroyed()) {
+        applyImagery(v)
+        clearInterval(t)
+      }
+    }, 50)
+    return () => clearInterval(t)
   }, [imageryMode])
+
+  // ── Globe init (camera + postRender guard) ───────────────────────────────────
+
+  useEffect(() => {
+    const setup = () => {
+      const viewer = viewerRef.current?.cesiumElement
+      if (!viewer || viewer.isDestroyed()) return null
+
+      viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date())
+      viewer.clock.shouldAnimate = false
+      viewer.scene.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(0, 20, 28_000_000),
+      })
+
+      // Guard against Cesium's async default layer insertion for 5 s after mount
+      const guardUntil = Date.now() + 5000
+      const removeGuard = viewer.scene.postRender.addEventListener(() => {
+        if (Date.now() > guardUntil) { removeGuard(); return }
+        if (viewer.imageryLayers.length === 1) return
+        viewer.imageryLayers.removeAll()
+        viewer.imageryLayers.addImageryProvider(
+          imageryModeRef.current === 'satellite' ? GIBS_IMAGERY : OSM_IMAGERY
+        )
+      })
+      return removeGuard
+    }
+
+    const cleanup = setup()
+    if (cleanup) return cleanup
+
+    let removeFn: (() => void) | undefined
+    const t = setInterval(() => {
+      const fn = setup()
+      if (fn) { removeFn = fn; clearInterval(t) }
+    }, 50)
+    return () => { clearInterval(t); removeFn?.() }
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Country borders ──────────────────────────────────────────────────────────
 
